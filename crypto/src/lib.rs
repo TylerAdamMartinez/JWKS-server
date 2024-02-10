@@ -88,3 +88,37 @@ impl KeyPair {
         self.expiry <= current_time
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_pair_generation() {
+        let kid = "test_key";
+        let key_size = 2048;
+        let expiry_duration = 3600; // 1 hour
+        let key_pair = KeyPair::new(kid, key_size, expiry_duration);
+
+        assert_eq!(key_pair.kid, kid);
+        assert!(key_pair.private_key.is_some());
+        // Check if the expiry is roughly in the future by at least the expiry duration minus a small delta
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+        assert!(key_pair.expiry > now && key_pair.expiry <= now + expiry_duration);
+    }
+
+    #[test]
+    fn key_pair_expiry() {
+        let kid = "expired_key";
+        let key_size = 2048;
+        let expiry_duration = 1; // 1 second
+        let key_pair = KeyPair::new(kid, key_size, expiry_duration);
+
+        // Sleep for 2 seconds to ensure the key expires
+        std::thread::sleep(std::time::Duration::new(2, 0));
+        assert!(key_pair.is_expired());
+    }
+}
