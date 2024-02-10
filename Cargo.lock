@@ -3,5 +3,13 @@
 version = 3
 
 [[package]]
+name = "crypto"
+version = "0.1.0"
+
+[[package]]
 name = "jwks_server"
 version = "0.0.1"
+
+[[package]]
+name = "web_server"
+version = "0.1.0"
