@@ -1,5 +1,6 @@
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use rocket::serde::json::Json;
+use serde::Deserialize;
 use uuid::Uuid;
 
 #[get("/")]
@@ -27,9 +28,21 @@ pub fn get_jwks() -> Json<Jwks> {
     Json(Jwks::from_valid_pairs(key_pairs))
 }
 
-#[post("/auth?<expired>")]
-pub fn auth(expired: bool) -> Result<String, CryptoError> {
-    let expiry_time = if expired { -36_000 } else { 36_000 };
+#[derive(Debug, Deserialize)]
+pub struct Cred {
+    pub username: String,
+    pub password: String,
+}
+
+#[post("/auth?<expired>", data = "<creds>")]
+pub fn auth(creds: Json<Cred>, expired: Option<bool>) -> Result<String, CryptoError> {
+    println!("{:#?}", creds);
+
+    let expiry_time = if expired.unwrap_or(false) {
+        -36_000
+    } else {
+        36_000
+    };
 
     Ok(Jwt::new(&Uuid::new_v4().to_string(), expiry_time)?)
 }
