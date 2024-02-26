@@ -1,4 +1,4 @@
-use crate::crypto::{Jwk, Jwks, KeyPair};
+use crate::crypto::{CryptoError, Jwk, Jwks, KeyPair};
 
 use rocket::serde::json::Json;
 use uuid::Uuid;
@@ -8,13 +8,22 @@ pub fn index() -> &'static str {
     "Howdy!"
 }
 
+#[get("/create-key-pair?<key_size>&<expiry_duration>")]
+pub fn create_key_pair(
+    key_size: usize,
+    expiry_duration: u64,
+) -> Result<Json<KeyPair>, CryptoError> {
+    let new_key_pair = KeyPair::new(&Uuid::new_v4().to_string(), key_size, expiry_duration)?;
+    Ok(Json(new_key_pair))
+}
+
 #[get("/.well-known/jwks.json")]
 pub fn get_jwks() -> Json<Jwks> {
     let mut key_pairs = Vec::<KeyPair>::new();
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 1000));
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 1024, 10000));
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 15000));
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 30000));
+    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 1000).unwrap());
+    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 1024, 10000).unwrap());
+    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 15000).unwrap());
+    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 30000).unwrap());
 
     Json(Jwks {
         keys: key_pairs

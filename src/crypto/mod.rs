@@ -1,6 +1,11 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::rngs::OsRng;
+use rocket::{
+    http::Status,
+    response::{self, Responder, Response},
+    Request,
+};
 #[warn(unused_imports)] // Trait used by base64::engine::general_purpose
 use rsa::PublicKeyParts;
 use rsa::{
@@ -9,6 +14,51 @@ use rsa::{
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Represents errors that can occur within cryptographic operations.
+#[derive(Debug)]
+pub enum CryptoError {
+    /// An error that wraps an RSA key pair generation or manipulation error.
+    KeyPairError(rsa::errors::Error),
+    /// An error that wraps issues encountered with system time operations.
+    SystemTimeError(std::time::SystemTimeError),
+}
+
+/// Allows conversion from `rsa::errors::Error` to `CryptoError`.
+impl From<rsa::errors::Error> for CryptoError {
+    fn from(err: rsa::errors::Error) -> CryptoError {
+        CryptoError::KeyPairError(err)
+    }
+}
+
+/// Enables conversion from `std::time::SystemTimeError` to `CryptoError`.
+impl From<std::time::SystemTimeError> for CryptoError {
+    fn from(err: std::time::SystemTimeError) -> CryptoError {
+        CryptoError::SystemTimeError(err)
+    }
+}
+
+/// Implementation of the `Responder` trait for `CryptoError`.
+/// This allows `CryptoError` instances to be directly used in Rocket handler responses.
+impl<'r> Responder<'r, 'static> for CryptoError {
+    /// Converts a `CryptoError` into a Rocket response.
+    ///
+    /// # Returns
+    ///
+    /// A Rocket response indicating an error occurred.
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        match self {
+            CryptoError::KeyPairError(_) => {
+                // Maps `KeyPairError` to a `BadRequest` (400) status code.
+                Response::build().status(Status::BadRequest).ok()
+            }
+            CryptoError::SystemTimeError(_) => {
+                // Maps `SystemTimeError` to an `InternalServerError` (500) status code.
+                Response::build().status(Status::InternalServerError).ok()
+            }
+        }
+    }
+}
 
 /// Represents a JSON Web Key Set (JWKS).
 ///
@@ -125,35 +175,44 @@ where
 }
 
 impl KeyPair {
-    /// Creates a new `KeyPair` with the specified unique identifier (`kid`), key size, and expiry duration.
+    /// Creates a new RSA `KeyPair` with the specified unique identifier (`kid`), key size, and expiry duration.
+    ///
+    /// This function generates a new RSA key pair of the given size and sets its expiry based on the provided duration.
+    /// It encapsulates the generated key pair within a `KeyPair` struct along with a unique identifier and expiry timestamp.
     ///
     /// # Parameters
     ///
-    /// * `kid` - A unique identifier for the key pair.
-    /// * `key_size` - The size of the RSA key in bits.
-    /// * `expiry_duration` - The duration from the current time after which the key pair expires, in seconds.
+    /// * `kid` - A unique identifier for the key pair. This is typically a UUID.
+    /// * `key_size` - The size of the RSA key in bits. Common sizes are 2048 or 4096 bits.
+    /// * `expiry_duration` - The duration in seconds from the current time after which the key pair is considered expired.
     ///
     /// # Returns
     ///
-    /// A new `KeyPair` instance.
-    pub fn new(kid: &str, key_size: usize, expiry_duration: u64) -> Self {
+    /// Returns a `Result` which is:
+    ///
+    /// - `Ok(KeyPair)` - A `KeyPair` instance if the key pair was successfully generated.
+    /// - `Err(CryptoError)` - An `CryptoError` if an error occurred during key pair generation.
+    ///
+    /// # Errors
+    ///
+    /// This function can return an error if:
+    ///
+    /// - The RSA key generation fails due to invalid parameters or internal errors.
+    /// - There are issues with system time retrieval.
+    pub fn new(kid: &str, key_size: usize, expiry_duration: u64) -> Result<Self, CryptoError> {
         let mut rng = OsRng;
-        let private_key = RsaPrivateKey::new(&mut rng, key_size).expect("Failed to generate a key");
+        let private_key = RsaPrivateKey::new(&mut rng, key_size)?;
         let public_key = RsaPublicKey::from(&private_key);
 
         let private_key = Some(private_key);
-        let expiry = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs()
-            + expiry_duration;
+        let expiry = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + expiry_duration;
 
-        KeyPair {
+        Ok(Self {
             kid: kid.to_owned(),
             public_key,
             private_key,
             expiry,
-        }
+        })
     }
 
     /// Checks whether the key pair has expired based on the current system time.
@@ -206,7 +265,7 @@ mod tests {
         let kid = "test_key";
         let key_size = 2048;
         let expiry_duration = 3600; // 1 hour
-        let key_pair = KeyPair::new(kid, key_size, expiry_duration);
+        let key_pair = KeyPair::new(kid, key_size, expiry_duration).unwrap();
 
         assert_eq!(key_pair.kid, kid);
         assert!(key_pair.private_key.is_some());
@@ -223,7 +282,7 @@ mod tests {
         let kid = "expired_key";
         let key_size = 2048;
         let expiry_duration = 1; // 1 second
-        let key_pair = KeyPair::new(kid, key_size, expiry_duration);
+        let key_pair = KeyPair::new(kid, key_size, expiry_duration).unwrap();
 
         // Sleep for 2 seconds to ensure the key expires
         std::thread::sleep(std::time::Duration::new(2, 0));
