@@ -1,4 +1,4 @@
-use crate::crypto::Jwk;
+use super::Jwk;
 use serde::Serialize;
 
 /// Represents a JSON Web Key Set (JWKS).

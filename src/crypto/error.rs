@@ -11,12 +11,21 @@ pub enum CryptoError {
     KeyPairError(rsa::errors::Error),
     /// An error that wraps issues encountered with system time operations.
     SystemTimeError(std::time::SystemTimeError),
+    /// An error to siganl Jwt creation failure.
+    TokenCreationError,
 }
 
 /// Allows conversion from `rsa::errors::Error` to `CryptoError`.
 impl From<rsa::errors::Error> for CryptoError {
     fn from(err: rsa::errors::Error) -> CryptoError {
         CryptoError::KeyPairError(err)
+    }
+}
+
+/// Allows conversion from `jsonwebtoken::errors::Error` to `CryptoError`.
+impl From<jsonwebtoken::errors::Error> for CryptoError {
+    fn from(_err: jsonwebtoken::errors::Error) -> Self {
+        CryptoError::TokenCreationError
     }
 }
 
@@ -37,12 +46,8 @@ impl<'r> Responder<'r, 'static> for CryptoError {
     /// A Rocket response indicating an error occurred.
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         match self {
-            CryptoError::KeyPairError(_) => {
-                // Maps `KeyPairError` to a `BadRequest` (400) status code.
-                Response::build().status(Status::BadRequest).ok()
-            }
-            CryptoError::SystemTimeError(_) => {
-                // Maps `SystemTimeError` to an `InternalServerError` (500) status code.
+            CryptoError::KeyPairError(_) => Response::build().status(Status::BadRequest).ok(),
+            CryptoError::TokenCreationError | CryptoError::SystemTimeError(_) => {
                 Response::build().status(Status::InternalServerError).ok()
             }
         }

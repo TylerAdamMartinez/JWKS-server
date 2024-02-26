@@ -7,5 +7,8 @@ pub use jwk::Jwk;
 pub mod jwks;
 pub use jwks::Jwks;
 
+pub mod jwt;
+pub use jwt::Jwt;
+
 pub mod key_pair;
 pub use key_pair::KeyPair;
