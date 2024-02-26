@@ -8,7 +8,7 @@ pub fn index() -> &'static str {
     "Howdy!"
 }
 
-#[get("/auth")]
+#[get("/.well-known/jwks.json")]
 pub fn get_jwks() -> Json<Jwks> {
     let mut key_pairs = Vec::<KeyPair>::new();
     key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 1000));
