@@ -1,9 +1,4 @@
-use crate::crypto::{CryptoError, Jwk, Jwks, Jwt, KeyPair};
-use std::{
-    time::{SystemTime, UNIX_EPOCH},
-    u64,
-};
-
+use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use rocket::serde::json::Json;
 use uuid::Uuid;
 
@@ -15,7 +10,7 @@ pub fn index() -> &'static str {
 #[get("/create-key-pair?<key_size>&<expiry_duration>")]
 pub fn create_key_pair(
     key_size: usize,
-    expiry_duration: u64,
+    expiry_duration: i64,
 ) -> Result<Json<KeyPair>, CryptoError> {
     let new_key_pair = KeyPair::new(&Uuid::new_v4().to_string(), key_size, expiry_duration)?;
     Ok(Json(new_key_pair))
@@ -29,35 +24,12 @@ pub fn get_jwks() -> Json<Jwks> {
     key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 15_000).unwrap());
     key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 255, 30_000).unwrap());
 
-    Json(Jwks {
-        keys: key_pairs
-            .into_iter()
-            .filter_map(|jwt_key| {
-                if !jwt_key.is_expired() {
-                    Some(Jwk::new(&jwt_key.kid, &jwt_key.public_key))
-                } else {
-                    None
-                }
-            })
-            .collect(),
-    })
+    Json(Jwks::from_valid_pairs(key_pairs))
 }
 
 #[post("/auth?<expired>")]
 pub fn auth(expired: bool) -> Result<String, CryptoError> {
-    let expiry_time = if expired {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u64
-            - 3600
-    } else {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u64
-            + 3600
-    };
+    let expiry_time = if expired { -36_000 } else { 36_000 };
 
     Ok(Jwt::new(&Uuid::new_v4().to_string(), expiry_time)?)
 }

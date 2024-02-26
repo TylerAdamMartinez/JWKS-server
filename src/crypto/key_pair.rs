@@ -68,13 +68,27 @@ impl KeyPair {
     ///
     /// - The RSA key generation fails due to invalid parameters or internal errors.
     /// - There are issues with system time retrieval.
-    pub fn new(kid: &str, key_size: usize, expiry_duration: u64) -> Result<Self, CryptoError> {
+    pub fn new(kid: &str, key_size: usize, expiry_duration: i64) -> Result<Self, CryptoError> {
         let mut rng = OsRng;
         let private_key = RsaPrivateKey::new(&mut rng, key_size)?;
         let public_key = RsaPublicKey::from(&private_key);
 
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs() as u64;
+
+        let expiry = if expiry_duration < 0 {
+            current_time
+                .checked_sub(expiry_duration.abs() as u64)
+                .unwrap_or(0)
+        } else {
+            current_time
+                .checked_add(expiry_duration as u64)
+                .unwrap_or(u64::MAX)
+        };
+
         let private_key = Some(private_key);
-        let expiry = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + expiry_duration;
 
         Ok(Self {
             kid: kid.to_owned(),
@@ -93,9 +107,8 @@ impl KeyPair {
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
-            .as_secs();
-
-        self.expiry <= current_time
+            .as_secs() as u64;
+        self.expiry < current_time
     }
 }
 
@@ -107,17 +120,24 @@ mod tests {
     fn key_pair_generation() {
         let kid = "test_key";
         let key_size = 2048;
-        let expiry_duration = 3600; // 1 hour
+        let expiry_duration: i64 = 3600;
+
         let key_pair = KeyPair::new(kid, key_size, expiry_duration).unwrap();
 
         assert_eq!(key_pair.kid, kid);
         assert!(key_pair.private_key.is_some());
         // Check if the expiry is roughly in the future by at least the expiry duration minus a small delta
-        let now = SystemTime::now()
+        let now_i64 = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
-            .as_secs();
-        assert!(key_pair.expiry > now && key_pair.expiry <= now + expiry_duration);
+            .as_secs() as i64;
+
+        let now_u64 = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs() as u64;
+
+        assert!(key_pair.expiry > now_u64 && key_pair.expiry <= (now_i64 + expiry_duration) as u64);
     }
 
     #[test]
