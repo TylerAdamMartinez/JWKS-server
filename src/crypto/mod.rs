@@ -1,7 +1,8 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::rngs::OsRng;
-pub use rsa::PublicKeyParts as KeyPairParts;
+#[warn(unused_imports)] // Trait used by base64::engine::general_purpose
+use rsa::PublicKeyParts;
 use rsa::{
     pkcs8::{FromPublicKey, ToPublicKey},
     RsaPrivateKey, RsaPublicKey,
@@ -173,6 +174,32 @@ impl KeyPair {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::rngs::OsRng;
+
+    fn generate_test_rsa_public_key() -> RsaPublicKey {
+        let mut rng = OsRng;
+        let bits = 2048;
+        let private_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+        private_key.to_public_key()
+    }
+
+    #[test]
+    fn test_jwk_new_sets_correct_fields() {
+        let test_kid = "test_kid";
+        let test_public_key = generate_test_rsa_public_key();
+
+        let jwk = Jwk::new(test_kid, &test_public_key);
+
+        assert_eq!(jwk.kty, "RSA");
+        assert_eq!(jwk.use_, "sig");
+        assert_eq!(jwk.kid, test_kid);
+
+        let n_encoded = general_purpose::URL_SAFE_NO_PAD.encode(test_public_key.n().to_bytes_be());
+        let e_encoded = general_purpose::URL_SAFE_NO_PAD.encode(test_public_key.e().to_bytes_be());
+
+        assert_eq!(jwk.n, n_encoded, "Modulus (n) is not correctly encoded.");
+        assert_eq!(jwk.e, e_encoded, "Exponent (e) is not correctly encoded.");
+    }
 
     #[test]
     fn key_pair_generation() {

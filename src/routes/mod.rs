@@ -1,4 +1,4 @@
-use crate::crypto::{Jwk, Jwks, KeyPair, KeyPairParts};
+use crate::crypto::{Jwk, Jwks, KeyPair};
 
 use rocket::serde::json::Json;
 use uuid::Uuid;
