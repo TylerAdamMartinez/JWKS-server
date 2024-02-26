@@ -77,6 +77,7 @@ impl Jwk {
 mod tests {
     use super::*;
     use rand::rngs::OsRng;
+    use rsa::RsaPrivateKey;
 
     fn generate_test_rsa_public_key() -> RsaPublicKey {
         let mut rng = OsRng;
