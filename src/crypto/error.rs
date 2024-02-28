@@ -8,15 +8,40 @@ use rocket::{
 /// Represents errors that can occur within cryptographic operations.
 #[derive(Debug)]
 pub enum CryptoError {
-    /// An error that wraps an RSA key pair generation or manipulation error.
+    /// An error arising from RSA key pair generation or manipulation.
+    ///
+    /// This variant is used to encapsulate errors from the `rsa` crate,
+    /// such as those occurring during the generation of a new RSA key pair
+    /// or when manipulating existing keys.
     KeyPairError(rsa::errors::Error),
-    /// An error that wraps issues encountered with system time operations.
+
+    /// An error related to system time operations.
+    ///
+    /// This variant is used when encountering issues with retrieving or
+    /// manipulating system time, which may be needed for setting key
+    /// expiration times or other time-sensitive cryptographic operations.
     SystemTimeError(std::time::SystemTimeError),
-    /// An error to siganl Jwt creation failure.
+
+    /// Indicates a failure in JWT creation.
+    ///
+    /// This error is used when the JWT creation process fails, which might
+    /// be due to issues with the payload, signing process, or other aspects
+    /// of token generation.
     TokenCreationError,
 
+    /// An error related to environment variable operations.
+    ///
+    /// This variant is used when encountering issues with retrieving
+    /// environment variables, such as missing or malformed values that
+    /// are expected to configure or drive cryptographic operations.
     EnvVarError(dotenv::Error),
 
+    /// An error arising from parsing integer values.
+    ///
+    /// This variant is used when an error occurs while parsing string
+    /// representations of integers into their respective numeric types.
+    /// It is typically encountered when converting configuration values
+    /// or parameters from text to numbers.
     ParseIntError(std::num::ParseIntError),
 }
 
