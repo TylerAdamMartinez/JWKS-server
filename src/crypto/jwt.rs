@@ -1,6 +1,6 @@
 use super::{CryptoError, Jwk, KeyPair};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use rsa::pkcs8::ToPrivateKey;
+use rsa::pkcs8::{EncodePrivateKey, LineEnding};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -46,7 +46,7 @@ impl Jwt {
         let pem_result = key_pair
             .private_key
             .unwrap()
-            .to_pkcs8_pem()
+            .to_pkcs8_pem(LineEnding::CRLF)
             .map_err(|_| CryptoError::KeyPairError);
 
         let pem = match pem_result {

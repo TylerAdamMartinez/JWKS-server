@@ -1,10 +1,8 @@
 use crate::crypto::error::CryptoError;
 use dotenv;
 use rand::rngs::OsRng;
-use rsa::{
-    pkcs8::{FromPublicKey, ToPublicKey},
-    RsaPrivateKey, RsaPublicKey,
-};
+use rsa::pkcs8::{DecodePublicKey, EncodePublicKey, LineEnding};
+use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -31,7 +29,9 @@ fn serialize_rsa_public_key<S>(key: &RsaPublicKey, serializer: S) -> Result<S::O
 where
     S: Serializer,
 {
-    let pem = key.to_public_key_pem().map_err(serde::ser::Error::custom)?;
+    let pem = key
+        .to_public_key_pem(LineEnding::CRLF)
+        .map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&pem)
 }
 

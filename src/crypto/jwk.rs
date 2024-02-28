@@ -1,7 +1,7 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 #[warn(unused_imports)] // Trait used by base64::engine::general_purpose
-use rsa::PublicKeyParts;
+use rsa::traits::PublicKeyParts;
 use rsa::RsaPublicKey;
 use serde::Serialize;
 
