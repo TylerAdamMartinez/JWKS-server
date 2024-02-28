@@ -1,3 +1,4 @@
+use dotenv;
 use rocket::{
     http::Status,
     response::{self, Responder, Response},
@@ -13,12 +14,30 @@ pub enum CryptoError {
     SystemTimeError(std::time::SystemTimeError),
     /// An error to siganl Jwt creation failure.
     TokenCreationError,
+
+    EnvVarError(dotenv::Error),
+
+    ParseIntError(std::num::ParseIntError),
 }
 
 /// Allows conversion from `rsa::errors::Error` to `CryptoError`.
 impl From<rsa::errors::Error> for CryptoError {
     fn from(err: rsa::errors::Error) -> CryptoError {
         CryptoError::KeyPairError(err)
+    }
+}
+
+/// Allows conversion from `dotenv::Error` to `CryptoError`.
+impl From<dotenv::Error> for CryptoError {
+    fn from(err: dotenv::Error) -> CryptoError {
+        CryptoError::EnvVarError(err)
+    }
+}
+
+/// Allows conversion from `std::num::ParseIntError` to `CryptoError`.
+impl From<std::num::ParseIntError> for CryptoError {
+    fn from(err: std::num::ParseIntError) -> CryptoError {
+        CryptoError::ParseIntError(err)
     }
 }
 
@@ -47,7 +66,10 @@ impl<'r> Responder<'r, 'static> for CryptoError {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         match self {
             CryptoError::KeyPairError(_) => Response::build().status(Status::BadRequest).ok(),
-            CryptoError::TokenCreationError | CryptoError::SystemTimeError(_) => {
+            CryptoError::TokenCreationError
+            | CryptoError::SystemTimeError(_)
+            | CryptoError::ParseIntError(_)
+            | CryptoError::EnvVarError(_) => {
                 Response::build().status(Status::InternalServerError).ok()
             }
         }

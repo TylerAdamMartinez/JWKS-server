@@ -1,4 +1,5 @@
 use crate::crypto::error::CryptoError;
+use dotenv;
 use rand::rngs::OsRng;
 use rsa::{
     pkcs8::{FromPublicKey, ToPublicKey},
@@ -52,7 +53,6 @@ impl KeyPair {
     /// # Parameters
     ///
     /// * `kid` - A unique identifier for the key pair. This is typically a UUID.
-    /// * `key_size` - The size of the RSA key in bits. Common sizes are 2048 or 4096 bits.
     /// * `expiry_duration` - The duration in seconds from the current time after which the key pair is considered expired.
     ///
     /// # Returns
@@ -68,7 +68,10 @@ impl KeyPair {
     ///
     /// - The RSA key generation fails due to invalid parameters or internal errors.
     /// - There are issues with system time retrieval.
-    pub fn new(kid: &str, key_size: usize, expiry_duration: i64) -> Result<Self, CryptoError> {
+    pub fn new(kid: &str, expiry_duration: i64) -> Result<Self, CryptoError> {
+        let key_size_str = dotenv::var("KEY_SIZE")?;
+        let key_size = key_size_str.parse::<usize>().map_err(CryptoError::from)?;
+
         let mut rng = OsRng;
         let private_key = RsaPrivateKey::new(&mut rng, key_size)?;
         let public_key = RsaPublicKey::from(&private_key);
@@ -119,10 +122,9 @@ mod tests {
     #[test]
     fn key_pair_generation() {
         let kid = "test_key";
-        let key_size = 2048;
         let expiry_duration: i64 = 3600;
 
-        let key_pair = KeyPair::new(kid, key_size, expiry_duration).unwrap();
+        let key_pair = KeyPair::new(kid, expiry_duration).unwrap();
 
         assert_eq!(key_pair.kid, kid);
         assert!(key_pair.private_key.is_some());
@@ -143,9 +145,8 @@ mod tests {
     #[test]
     fn key_pair_expiry() {
         let kid = "expired_key";
-        let key_size = 2048;
         let expiry_duration = 1; // 1 second
-        let key_pair = KeyPair::new(kid, key_size, expiry_duration).unwrap();
+        let key_pair = KeyPair::new(kid, expiry_duration).unwrap();
 
         // Sleep for 2 seconds to ensure the key expires
         std::thread::sleep(std::time::Duration::new(2, 0));

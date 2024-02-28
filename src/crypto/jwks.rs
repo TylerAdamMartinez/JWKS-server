@@ -49,7 +49,7 @@ mod tests {
     fn mock_key_pair(kid: &str, is_expired: bool) -> KeyPair {
         let expiration = if is_expired { -72_000 } else { 72_000 };
 
-        KeyPair::new(&kid.to_string(), 255, expiration).unwrap()
+        KeyPair::new(&kid.to_string(), expiration).unwrap()
     }
 
     #[test]

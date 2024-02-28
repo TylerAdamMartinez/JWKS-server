@@ -36,7 +36,7 @@ impl Jwt {
     /// let jwt = Jwt::new("user123", 3600)?;
     /// ```
     pub fn new(sub: &str, exp: i64) -> Result<String, CryptoError> {
-        let key_pair = KeyPair::new(&Uuid::new_v4().to_string(), 2048, exp)?;
+        let key_pair = KeyPair::new(&Uuid::new_v4().to_string(), exp)?;
 
         let claims = CustomClaims {
             sub: sub.to_string(),
