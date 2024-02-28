@@ -37,6 +37,8 @@ JWKS-server/
 ├── Cargo.toml
 ├── Rocket.toml
 ├── .gitignore
+├── .env.example
+├── .env
 ├── src/
 │ ├── crypto/
 │ │ ├── error.rs
@@ -59,11 +61,48 @@ JWKS-server/
 
 ## Endpoints
 
-- **JWKS Endpoint**: `GET /jwks`
-  - Returns a JSON Web Key Set containing public keys that have not expired.
+The server provides the following endpoints:
 
-- **Auth Endpoint**: `POST /auth?expired=[true|false]`
-  - Returns a JWT. If the `expired` query parameter is set to `true`, the JWT will be signed with an expired key pair.
+### GET `/`
+
+A simple endpoint that returns a greeting message, demonstrating a basic HTTP GET request.
+
+Response:  
+```bash
+Howdy!
+```
+
+### GET `/.well-known/jwks.json`
+
+Serves the public keys used by the server in JWKS (JSON Web Key Set) format. 
+This endpoint ensures that only keys that have not expired are included, enabling 
+clients to verify the authenticity of JWTs issued by this server.
+
+Response:  
+```json
+{
+  "keys": [
+    // Public keys in JWKS format
+  ]
+}
+```
+
+### POST `/auth?expired=[true|false]`
+
+Issues a JWT (JSON Web Token) for authenticated users. 
+This endpoint allows clients to request an expired JWT for 
+testing purposes by setting the expired query parameter to true.
+
+request (Content-Type: application/json):  
+```json
+{
+  "username": "user",
+  "password": "pass"
+}
+```
+
+Response:  
+A JWT in text format.
 
 ## Testing
 

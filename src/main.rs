@@ -3,6 +3,7 @@ extern crate rocket;
 
 use dotenv;
 
+mod auth;
 mod crypto;
 mod routes;
 
