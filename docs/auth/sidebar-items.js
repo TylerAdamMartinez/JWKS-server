@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_user","find_user_by_username"],"struct":["Cred","User"]};
