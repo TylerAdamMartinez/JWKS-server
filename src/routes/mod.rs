@@ -1,6 +1,8 @@
-use crate::auth::Cred;
+use crate::auth::LoginDTO;
+use crate::auth::{create_user, find_user_by_username};
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use rocket::serde::json::Json;
+use sqlx::SqlitePool;
 use uuid::Uuid;
 
 /// Responds with a greeting message.
@@ -36,8 +38,21 @@ pub fn get_jwks() -> Json<Jwks> {
 /// * `creds` - User credentials including a username and password.
 /// * `expired` - An optional query parameter that dictates whether the issued JWT should be expired.
 #[post("/auth?<expired>", data = "<creds>")]
-pub fn auth(creds: Json<Cred>, expired: Option<bool>) -> Result<String, CryptoError> {
-    println!("{:#?}", creds);
+pub async fn auth(
+    db_pool: &rocket::State<SqlitePool>,
+    creds: Json<LoginDTO>,
+    expired: Option<bool>,
+) -> Result<String, CryptoError> {
+    let user_option = find_user_by_username(db_pool, &creds.username)
+        .await
+        .map_err(|_| CryptoError::DatabaseError)?;
+
+    let user = match user_option {
+        Some(user) => user,
+        None => create_user(db_pool, &creds.username, &creds.password)
+            .await
+            .map_err(|_| CryptoError::DatabaseError)?,
+    };
 
     let expiry_time = if expired.unwrap_or(false) {
         -36_000
@@ -45,5 +60,5 @@ pub fn auth(creds: Json<Cred>, expired: Option<bool>) -> Result<String, CryptoEr
         36_000
     };
 
-    Ok(Jwt::new(&Uuid::new_v4().to_string(), expiry_time)?)
+    Ok(Jwt::new(&user.user_id.to_string(), expiry_time)?)
 }

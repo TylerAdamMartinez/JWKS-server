@@ -1,9 +1,11 @@
+use bcrypt::BcryptError;
 use dotenv;
 use rocket::{
     http::Status,
     response::{self, Responder, Response},
     Request,
 };
+use sqlx::error::{DatabaseError, ErrorKind};
 
 /// Represents errors that can occur within cryptographic operations.
 #[derive(Debug)]
@@ -43,6 +45,74 @@ pub enum CryptoError {
     /// It is typically encountered when converting configuration values
     /// or parameters from text to numbers.
     ParseIntError(std::num::ParseIntError),
+
+    /// Indicates a generic database error.
+    ///
+    /// This variant represents a generic error related to database
+    /// operations within cryptographic contexts.
+    DatabaseError,
+}
+
+/// A structured error type for hashing operations, encapsulating details about the error.
+#[derive(Debug)]
+pub struct HashError {
+    /// A human-readable message describing the error.
+    pub message: String,
+    /// An optional `BcryptError` providing more specific details if the error is related to bcrypt operations.
+    bcrypt_error: Option<BcryptError>,
+}
+
+impl HashError {
+    /// Constructs a new `HashError`.
+    ///
+    /// # Arguments
+    /// * `message` - A message describing the error.
+    /// * `bcrypt_error` - An optional `BcryptError` related to the hashing operation.
+    ///
+    /// # Returns
+    /// Returns an instance of `HashError`.
+    pub fn new(message: &str, bcrypt_error: Option<BcryptError>) -> Self {
+        Self {
+            message: message.to_string(),
+            bcrypt_error,
+        }
+    }
+}
+
+impl std::fmt::Display for HashError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for HashError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.bcrypt_error
+            .as_ref()
+            .map(|e| e as &dyn std::error::Error)
+    }
+}
+
+impl DatabaseError for HashError {
+    fn message(&self) -> &str {
+        &self.message
+    }
+
+    fn kind(&self) -> ErrorKind {
+        ErrorKind::Other
+    }
+
+    fn as_error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+        self
+    }
+
+    fn as_error_mut(&mut self) -> &mut (dyn std::error::Error + Send + Sync + 'static) {
+        self
+    }
+
+    fn into_error(self: Box<Self>) -> Box<(dyn std::error::Error + Send + Sync + 'static)> {
+        self
+    }
 }
 
 /// Allows conversion from `rsa::errors::Error` to `CryptoError`.
@@ -92,6 +162,7 @@ impl<'r> Responder<'r, 'static> for CryptoError {
         match self {
             CryptoError::KeyPairError(_) => Response::build().status(Status::BadRequest).ok(),
             CryptoError::TokenCreationError
+            | CryptoError::DatabaseError
             | CryptoError::SystemTimeError(_)
             | CryptoError::ParseIntError(_)
             | CryptoError::EnvVarError(_) => {
