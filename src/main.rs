@@ -9,8 +9,23 @@ mod auth;
 mod crypto;
 mod routes;
 
+/// Launches the Rocket web server with configured routes and database pool.
+///
+/// This function initializes the Rocket instance, sets up the database connection pool,
+/// and mounts the application's routes. It reads the `DATABASE_URL` from the environment,
+/// connects to the SQLite database, and injects the connection pool into Rocket's state
+/// for use across the application.
+///
+/// # Panics
+/// The function panics if:
+/// - The `DATABASE_URL` environment variable is not set.
+/// - The connection to the SQLite database fails.
+///
+/// # Returns
+/// A configured `rocket::Rocket` instance ready for launching.
 #[launch]
 async fn rocket() -> _ {
+    // Load environment variables from the .env file, if present.
     dotenv::dotenv().ok();
 
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");

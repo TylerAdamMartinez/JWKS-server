@@ -86,12 +86,6 @@ JWKS-server/
 └── target/
 ```
 
-## Running the Server
-
-1. Ensure Rust and Cargo are installed.
-2. Navigate to the project root and run `cargo run` to start the server.
-3. The server will be accessible on `http://localhost:8080`.
-
 ## Endpoints
 
 The server provides the following endpoints:
