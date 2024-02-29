@@ -9,6 +9,21 @@ provides JWTs (JSON Web Tokens) through a RESTful API. It includes a JWKS
 (JSON Web Key Set) endpoint for serving public keys and an authentication 
 endpoint for issuing JWTs. 
 
+## Screenshots
+1. Terminal output of running rocket dev server  
+![Terminal output of running rocket dev server](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/ba03f07d-8e70-41de-bae6-4f12665da238)
+2. Postman output of /auth endpoint  
+![Postman output of /auth endpoint](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/a3858bec-b3db-4ad8-b3c4-49062ac2d25d)
+3. [jwt.io](https://www.jwt.io) website decoding of jwt produced by /auth endpoint  
+![jwt.io website decoding of jwt produced by /auth endpoint](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/90408224-bd62-449d-930f-02e64cda7a19)
+4. Postman output of /.well-known/jwks.json endpoint  
+![Postman output of /.well-known/jwks.json endpoint](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/7f20cc53-08a2-4763-bc4e-e37c2f2e8fd8)
+5. Postman output of / endpoint  
+![Postman output of / endpoint](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/61cb0477-6cb1-4fe2-9467-efc78b9c93ab)
+6. Termianl output of rocket logs  
+![Termianl output of rocket logs](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/23b4d2a1-5c4f-4c62-83ea-967142c5de62)
+
+
 ## Setup and Running Instructions
 Before running the JWKS Server, ensure you have completed the following setup steps:
 
