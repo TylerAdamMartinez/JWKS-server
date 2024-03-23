@@ -62,3 +62,8 @@ pub async fn auth(
 
     Ok(Jwt::new(&user.user_id.to_string(), expiry_time)?)
 }
+
+#[catch(404)]
+pub fn not_found() -> &'static str {
+    "404: NOT FOUND"
+}

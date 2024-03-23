@@ -38,4 +38,5 @@ async fn rocket() -> _ {
             rocket.manage(db_pool)
         }))
         .mount("/", routes![routes::index, routes::auth, routes::get_jwks])
+        .register("/", catchers![routes::not_found])
 }
