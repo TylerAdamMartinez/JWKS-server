@@ -3,9 +3,11 @@ extern crate rocket;
 
 use crypto::KeyPair;
 use dotenv;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use rocket::fairing::AdHoc;
+use rsa::pkcs1::EncodeRsaPrivateKey;
 use sqlx::SqlitePool;
-use uuid::Uuid;
 
 mod auth;
 mod crypto;
@@ -30,15 +32,41 @@ async fn rocket() -> _ {
     // Load environment variables from the .env file, if present.
     dotenv::dotenv().ok();
 
-    let mut key_pairs = Vec::<KeyPair>::new();
-    for _ in 0..40 {
-        key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), rand::random::<i64>()).unwrap());
-    }
-
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = SqlitePool::connect(&database_url)
         .await
         .expect("Failed to create pool");
+
+    sqlx::query!("DELETE FROM keys")
+        .execute(&db_pool)
+        .await
+        .expect("err");
+
+    let mut rng = StdRng::from_rng(rand::thread_rng()).expect("Failed to seed StdRng");
+    let mut key_pairs = Vec::<KeyPair>::new();
+    for i in 0..40 {
+        let expiry: i64 = rng.gen_range(-360_000..=360_000);
+        let key_pair = KeyPair::new(i, expiry).unwrap();
+        key_pairs.push(key_pair.clone());
+        let expiry_i32 = key_pair.expiry as i32;
+        let der_bytes: Vec<u8> = key_pair
+            .private_key
+            .unwrap()
+            .to_pkcs1_der()
+            .unwrap()
+            .as_bytes()
+            .to_vec();
+
+        sqlx::query!(
+            "INSERT INTO keys (kid, key, exp) VALUES (?, ?, ?)",
+            key_pair.kid,
+            der_bytes,
+            expiry_i32
+        )
+        .execute(&db_pool)
+        .await
+        .expect("err");
+    }
 
     rocket::build()
         .attach(AdHoc::on_ignite("SQLite Database", |rocket| async {

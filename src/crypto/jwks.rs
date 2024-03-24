@@ -32,7 +32,7 @@ impl Jwks {
                 .into_iter()
                 .filter_map(|jwt_key| {
                     if !jwt_key.is_expired() {
-                        Some(Jwk::new(&jwt_key.kid, &jwt_key.public_key))
+                        Some(Jwk::new(&jwt_key.kid.to_string(), &jwt_key.public_key))
                     } else {
                         None
                     }

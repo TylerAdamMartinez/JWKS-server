@@ -5,12 +5,13 @@ use rsa::pkcs8::{DecodePublicKey, EncodePublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::usize;
 
 /// Represents a RSA key pair with a unique identifier and expiry timestamp.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct KeyPair {
     /// A unique identifier for the key pair.
-    pub kid: String,
+    pub kid: i32,
     /// The RSA public key, serialized and deserialized as PEM format.
     #[serde(
         serialize_with = "serialize_rsa_public_key",
@@ -68,7 +69,7 @@ impl KeyPair {
     ///
     /// - The RSA key generation fails due to invalid parameters or internal errors.
     /// - There are issues with system time retrieval.
-    pub fn new(kid: &str, expiry_duration: i64) -> Result<Self, CryptoError> {
+    pub fn new(kid: i32, expiry_duration: i64) -> Result<Self, CryptoError> {
         let key_size_str = dotenv::var("KEY_SIZE")?;
         let key_size = key_size_str.parse::<usize>().map_err(CryptoError::from)?;
 
@@ -94,7 +95,7 @@ impl KeyPair {
         let private_key = Some(private_key);
 
         Ok(Self {
-            kid: kid.to_owned(),
+            kid,
             public_key,
             private_key,
             expiry,

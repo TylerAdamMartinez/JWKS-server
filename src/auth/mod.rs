@@ -5,7 +5,7 @@ use sqlx::{FromRow, SqlitePool};
 use uuid::Uuid;
 
 /// Represents credentials with a username and password.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct LoginDTO {
     pub username: String,
     pub password: String,
