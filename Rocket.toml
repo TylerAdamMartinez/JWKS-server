@@ -2,3 +2,6 @@
 address = "127.0.0.1"
 port = 8080
 limits = { form = "64 kB", json = "1 MiB" }
+keep_alive = 15
+ident = "Tyler Adam Martinez's CSCE 3550 project"
+log_level = "Debug"
