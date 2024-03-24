@@ -10,7 +10,7 @@ struct CustomClaims {
     /// The subject of the token (typically a user identifier).
     sub: String,
     /// The expiration time of the token as a timestamp.
-    exp: String,
+    exp: u64,
 }
 
 /// A struct for handling JSON Web Tokens (JWTs).
@@ -40,7 +40,7 @@ impl Jwt {
 
         let claims = CustomClaims {
             sub: sub.to_string(),
-            exp: key_pair.expiry.to_string(),
+            exp: key_pair.expiry,
         };
 
         let pem_result = key_pair
