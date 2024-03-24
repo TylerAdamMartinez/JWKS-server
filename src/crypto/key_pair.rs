@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Represents a RSA key pair with a unique identifier and expiry timestamp.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct KeyPair {
     /// A unique identifier for the key pair.
     pub kid: String,

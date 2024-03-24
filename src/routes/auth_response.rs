@@ -1,7 +1,7 @@
 // use crate::auth::LoginDTO;
 // use crate::auth::{create_user, find_user_by_username};
-use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
-use rocket::serde::json::Json;
+use crate::crypto::{key_pair, CryptoError, Jwks, Jwt, KeyPair};
+use rocket::{serde::json::Json, State};
 //use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -10,14 +10,8 @@ use uuid::Uuid;
 /// This endpoint serves public keys that are currently valid and have not expired,
 /// allowing clients to verify the authenticity of JWTs issued by this server.
 #[get("/.well-known/jwks.json")]
-pub fn get_jwks() -> Json<Jwks> {
-    let mut key_pairs = Vec::<KeyPair>::new();
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 1_000).unwrap());
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 10_000).unwrap());
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 15_000).unwrap());
-    key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), 30_000).unwrap());
-
-    Json(Jwks::from_valid_pairs(key_pairs))
+pub fn get_jwks(key_pairs: &State<Vec<KeyPair>>) -> Json<Jwks> {
+    Json(Jwks::from_valid_pairs(key_pairs.to_vec()))
 }
 
 /// Authenticates a user and returns a JWT.
@@ -32,6 +26,7 @@ pub fn get_jwks() -> Json<Jwks> {
 //#[post("/auth?<expired>", data = "<creds>")]
 #[post("/auth?<expired>")]
 pub fn auth(
+    key_pairs: &State<Vec<KeyPair>>,
     // db_pool: &rocket::State<SqlitePool>,
     expired: Option<bool>,
 ) -> Result<String, CryptoError> {
@@ -48,12 +43,14 @@ pub fn auth(
     };
     */
 
-    let expiry_time = if expired.unwrap_or(false) {
-        -360_000
-    } else {
-        360_000
-    };
-
     //Ok(Jwt::new(&user.user_id.to_string(), expiry_time)?)
-    Ok(Jwt::new(&Uuid::new_v4().to_string(), expiry_time)?)
+    let find_expired = expired.unwrap_or(false);
+
+    let key_pair = key_pairs
+        .inner()
+        .iter()
+        .find(|kp| find_expired == kp.is_expired())
+        .ok_or(CryptoError::TokenCreationError)?;
+
+    Ok(Jwt::from(&key_pair)?)
 }

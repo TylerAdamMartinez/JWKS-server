@@ -36,7 +36,7 @@ impl Jwt {
     /// let jwt = Jwt::new("user123", 3600)?;
     /// ```
     pub fn new(sub: &str, exp: i64) -> Result<String, CryptoError> {
-        let key_pair = KeyPair::new(&Uuid::new_v4().to_string(), exp)?;
+        let key_pair = KeyPair::new(sub, exp)?;
 
         let claims = CustomClaims {
             sub: sub.to_string(),
@@ -44,6 +44,34 @@ impl Jwt {
         };
 
         let pem_result = key_pair
+            .private_key
+            .unwrap()
+            .to_pkcs8_pem(LineEnding::CRLF)
+            .map_err(|_| CryptoError::KeyPairError);
+
+        let pem = match pem_result {
+            Ok(pem) => pem,
+            Err(_) => return Err(CryptoError::KeyPairError(rsa::errors::Error::Internal)),
+        };
+
+        let jwk = Jwk::new(&key_pair.kid, &key_pair.public_key);
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(jwk.kid.clone());
+
+        let encoding_key = EncodingKey::from_rsa_pem(&pem.as_bytes()).map_err(CryptoError::from)?;
+
+        encode(&header, &claims, &encoding_key).map_err(|_| CryptoError::TokenCreationError)
+    }
+
+    pub fn from(key_pair: &KeyPair) -> Result<String, CryptoError> {
+        let claims = CustomClaims {
+            sub: key_pair.kid.to_owned(),
+            exp: key_pair.expiry,
+        };
+
+        let pem_result = key_pair
+            .clone()
             .private_key
             .unwrap()
             .to_pkcs8_pem(LineEnding::CRLF)

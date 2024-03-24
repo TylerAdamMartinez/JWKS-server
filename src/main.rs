@@ -1,9 +1,11 @@
 #[macro_use]
 extern crate rocket;
 
+use crypto::KeyPair;
 use dotenv;
 use rocket::fairing::AdHoc;
 use sqlx::SqlitePool;
+use uuid::Uuid;
 
 mod auth;
 mod crypto;
@@ -28,6 +30,11 @@ async fn rocket() -> _ {
     // Load environment variables from the .env file, if present.
     dotenv::dotenv().ok();
 
+    let mut key_pairs = Vec::<KeyPair>::new();
+    for _ in 0..40 {
+        key_pairs.push(KeyPair::new(&Uuid::new_v4().to_string(), rand::random::<i64>()).unwrap());
+    }
+
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = SqlitePool::connect(&database_url)
         .await
@@ -37,6 +44,7 @@ async fn rocket() -> _ {
         .attach(AdHoc::on_ignite("SQLite Database", |rocket| async {
             rocket.manage(db_pool)
         }))
+        .manage(key_pairs)
         .mount("/", routes![routes::index, routes::auth, routes::get_jwks])
         .register("/auth", catchers![routes::not_found_to_method_not_allow])
         .register(
