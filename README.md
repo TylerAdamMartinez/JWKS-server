@@ -23,7 +23,9 @@ endpoint for issuing JWTs.
 6. Termianl output of rocket logs  
 ![Termianl output of rocket logs](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/23b4d2a1-5c4f-4c62-83ea-967142c5de62)
 7. Project2 requirements table
-![image](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/d1b85111-158b-4af5-9350-50f2b9c40cc1)
+![Project2 requirements table](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/d1b85111-158b-4af5-9350-50f2b9c40cc1)
+8. Test Converage
+![Test Converage](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/80bfb4a1-2019-4270-aecc-bfda5e964f0b)
 
 
 ## Setup and Running Instructions
