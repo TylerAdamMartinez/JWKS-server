@@ -22,6 +22,8 @@ endpoint for issuing JWTs.
 ![Postman output of / endpoint](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/61cb0477-6cb1-4fe2-9467-efc78b9c93ab)
 6. Termianl output of rocket logs  
 ![Termianl output of rocket logs](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/23b4d2a1-5c4f-4c62-83ea-967142c5de62)
+7. Project2 requirements table
+![image](https://github.com/TylerAdamMartinez/JWKS-server/assets/57375362/d1b85111-158b-4af5-9350-50f2b9c40cc1)
 
 
 ## Setup and Running Instructions
