@@ -69,10 +69,7 @@ mod tests {
 
     #[test]
     fn test_jwt_creation_success() {
-        let subject = "testuser";
-        let expiration = 3600;
-
-        match Jwt::new(subject, expiration) {
+        match Jwt::from(&KeyPair::new(1, 3600).unwrap()) {
             Ok(jwt) => {
                 assert!(
                     !jwt.is_empty(),

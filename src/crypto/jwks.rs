@@ -46,23 +46,23 @@ impl Jwks {
 mod tests {
     use super::*;
 
-    fn mock_key_pair(kid: &str, is_expired: bool) -> KeyPair {
+    fn mock_key_pair(kid: i64, is_expired: bool) -> KeyPair {
         let expiration = if is_expired { -72_000 } else { 72_000 };
 
-        KeyPair::new(&kid.to_string(), expiration).unwrap()
+        KeyPair::new(kid, expiration).unwrap()
     }
 
     #[test]
     fn test_from_valid_pairs() {
         let key_pairs = vec![
-            mock_key_pair("valid1", false),
-            mock_key_pair("expired1", true),
-            mock_key_pair("valid2", false),
-            mock_key_pair("expired2", true),
-            mock_key_pair("valid3", false),
-            mock_key_pair("valid4", false),
-            mock_key_pair("expired3", true),
-            mock_key_pair("valid5", false),
+            mock_key_pair(1, false),
+            mock_key_pair(2, true),
+            mock_key_pair(3, false),
+            mock_key_pair(4, true),
+            mock_key_pair(5, false),
+            mock_key_pair(6, false),
+            mock_key_pair(7, true),
+            mock_key_pair(8, false),
         ];
 
         let jwks = Jwks::from_valid_pairs(key_pairs);

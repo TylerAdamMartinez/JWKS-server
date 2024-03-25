@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn key_pair_generation() {
-        let kid = "test_key";
+        let kid = 1;
         let expiry_duration: i64 = 3600;
 
         let key_pair = KeyPair::new(kid, expiry_duration).unwrap();
@@ -180,9 +180,8 @@ mod tests {
 
     #[test]
     fn key_pair_expiry() {
-        let kid = "expired_key";
         let expiry_duration = 1; // 1 second
-        let key_pair = KeyPair::new(kid, expiry_duration).unwrap();
+        let key_pair = KeyPair::new(1, expiry_duration).unwrap();
 
         // Sleep for 2 seconds to ensure the key expires
         std::thread::sleep(std::time::Duration::new(2, 0));
