@@ -11,6 +11,7 @@ use sqlx::SqlitePool;
 
 mod auth;
 mod crypto;
+mod db;
 mod routes;
 
 /// Launches the Rocket web server with configured routes and database pool.

@@ -1,7 +1,8 @@
 use crate::auth::LoginDTO;
 use crate::auth::{create_user, find_user_by_username};
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
-use rocket::{serde::json::Json, State};
+use crate::db::KeysTable;
+use rocket::serde::json::Json;
 use sqlx::SqlitePool;
 
 /// Provides the public keys in JWKS (JSON Web Key Set) format.
@@ -9,11 +10,18 @@ use sqlx::SqlitePool;
 /// This endpoint serves public keys that are currently valid and have not expired,
 /// allowing clients to verify the authenticity of JWTs issued by this server.
 #[get("/.well-known/jwks.json")]
-pub fn get_jwks(
-    db_pool: &rocket::State<SqlitePool>,
-    key_pairs: &State<Vec<KeyPair>>,
-) -> Json<Jwks> {
-    Json(Jwks::from_valid_pairs(key_pairs.to_vec()))
+pub async fn get_jwks(db_pool: &rocket::State<SqlitePool>) -> Json<Jwks> {
+    let private_keys: Vec<KeysTable> = sqlx::query_as!(KeysTable, "SELECT * FROM keys")
+        .fetch_all(&**db_pool)
+        .await
+        .expect("");
+
+    let key_pairs: Vec<KeyPair> = private_keys
+        .iter()
+        .map(|pk| KeyPair::from_private_key(pk.kid, &pk.key, pk.exp).unwrap())
+        .filter(|kp| !kp.is_expired())
+        .collect();
+    Json(Jwks::from_valid_pairs(key_pairs))
 }
 
 /// Authenticates a user and returns a JWT.
@@ -27,7 +35,6 @@ pub fn get_jwks(
 /// * `expired` - An optional query parameter that dictates whether the issued JWT should be expired.
 #[post("/auth?<expired>", data = "<creds>")]
 pub async fn auth(
-    key_pairs: &State<Vec<KeyPair>>,
     db_pool: &rocket::State<SqlitePool>,
     expired: Option<bool>,
     creds: Json<Option<LoginDTO>>,
@@ -45,8 +52,17 @@ pub async fn auth(
     };
 
     let find_expired = expired.unwrap_or(false);
+    let private_keys: Vec<KeysTable> = sqlx::query_as!(KeysTable, "SELECT * FROM keys")
+        .fetch_all(&**db_pool)
+        .await
+        .expect("");
+
+    let key_pairs: Vec<KeyPair> = private_keys
+        .iter()
+        .map(|pk| KeyPair::from_private_key(pk.kid, &pk.key, pk.exp).unwrap())
+        .collect();
+
     let key_pair = key_pairs
-        .inner()
         .iter()
         .find(|kp| find_expired == kp.is_expired())
         .ok_or(CryptoError::TokenCreationError)?;

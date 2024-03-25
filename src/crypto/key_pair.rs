@@ -1,6 +1,7 @@
 use crate::crypto::error::CryptoError;
 use dotenv;
 use rand::rngs::OsRng;
+use rsa::pkcs1::DecodeRsaPrivateKey;
 use rsa::pkcs8::{DecodePublicKey, EncodePublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -11,7 +12,7 @@ use std::usize;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct KeyPair {
     /// A unique identifier for the key pair.
-    pub kid: i32,
+    pub kid: i64,
     /// The RSA public key, serialized and deserialized as PEM format.
     #[serde(
         serialize_with = "serialize_rsa_public_key",
@@ -69,12 +70,46 @@ impl KeyPair {
     ///
     /// - The RSA key generation fails due to invalid parameters or internal errors.
     /// - There are issues with system time retrieval.
-    pub fn new(kid: i32, expiry_duration: i64) -> Result<Self, CryptoError> {
+    pub fn new(kid: i64, expiry_duration: i64) -> Result<Self, CryptoError> {
         let key_size_str = dotenv::var("KEY_SIZE")?;
         let key_size = key_size_str.parse::<usize>().map_err(CryptoError::from)?;
 
         let mut rng = OsRng;
         let private_key = RsaPrivateKey::new(&mut rng, key_size)?;
+        let public_key = RsaPublicKey::from(&private_key);
+
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs() as u64;
+
+        let expiry = if expiry_duration < 0 {
+            current_time
+                .checked_sub(expiry_duration.abs() as u64)
+                .unwrap_or(0)
+        } else {
+            current_time
+                .checked_add(expiry_duration as u64)
+                .unwrap_or(u64::MAX)
+        };
+
+        let private_key = Some(private_key);
+
+        Ok(Self {
+            kid,
+            public_key,
+            private_key,
+            expiry,
+        })
+    }
+
+    pub fn from_private_key(
+        kid: i64,
+        key: &Vec<u8>,
+        expiry_duration: i64,
+    ) -> Result<Self, CryptoError> {
+        let private_key = RsaPrivateKey::from_pkcs1_der(&key)
+            .expect("Failed to decode PKCS#1 DER bytes into RsaPrivateKey");
         let public_key = RsaPublicKey::from(&private_key);
 
         let current_time = SystemTime::now()
