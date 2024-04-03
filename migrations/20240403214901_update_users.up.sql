@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE IF NOT EXISTS users (
+  user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  email TEXT UNIQUE,
+  date_registered TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP      
+);
