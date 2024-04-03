@@ -1,8 +1,7 @@
 use crate::crypto::error::HashError;
 use bcrypt::{hash, DEFAULT_COST};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
-use uuid::Uuid;
 
 /// Represents credentials with a username and password.
 #[derive(Debug, Deserialize, Default)]
@@ -11,11 +10,32 @@ pub struct LoginDTO {
     pub password: String,
 }
 
+/// Represents credentials with a username and email.
+#[derive(Debug, Deserialize, Default)]
+pub struct RegisterDTO {
+    pub username: String,
+    pub email: String,
+}
+
+/// Represents successful registeration response DTO.
+#[derive(Debug, Serialize, Default)]
+pub struct PasswordDTO {
+    pub password: String,
+}
+
+impl PasswordDTO {
+    pub fn new(password: &str) -> Self {
+        Self {
+            password: password.to_owned(),
+        }
+    }
+}
+
 /// Represents a user with a unique identifier, username, and password hash.
 #[derive(FromRow, Debug, Deserialize)]
 pub struct User {
     /// The unique identifier of the user.
-    pub user_id: Uuid,
+    pub id: Option<i64>,
     /// The username of the user. Usernames are unique.
     pub username: String,
     /// The hash of the user's password for secure storage.
@@ -36,9 +56,9 @@ pub struct User {
 pub async fn create_user(
     db_pool: &SqlitePool,
     username: &str,
+    email: &str,
     password: &str,
 ) -> Result<User, sqlx::Error> {
-    let user_id = Uuid::new_v4();
     let username = username.to_string();
     let password_hash = hash_password(password).map_err(|_| {
         sqlx::Error::Database(Box::new(HashError::new(
@@ -50,16 +70,20 @@ pub async fn create_user(
     })?;
 
     sqlx::query!(
-        "INSERT INTO users (user_id, username, password_hash) VALUES (?, ?, ?)",
-        user_id,
+        "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
         username,
+        email,
         password_hash
     )
     .execute(db_pool)
     .await?;
 
+    let user_record = sqlx::query!("SELECT id FROM users WHERE username = ?", username)
+        .fetch_one(db_pool)
+        .await?;
+
     Ok(User {
-        user_id,
+        id: user_record.id,
         username,
         password_hash,
     })
@@ -78,33 +102,6 @@ fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
     hash(password, DEFAULT_COST)
 }
 
-/// Finds a user by username in the database.
-///
-/// # Arguments
-///
-/// * `db_pool` - A connection pool to the SQLite database.
-/// * `username` - The username of the user to find.
-///
-/// # Returns
-///
-/// Returns a `Result` which is `Ok` with `Some(User)` if the user is found,
-/// `Ok` with `None` if the user is not found,
-/// or an `Err` with an `sqlx::Error` on failure.
-pub async fn find_user_by_username(
-    db_pool: &SqlitePool,
-    username: &str,
-) -> Result<Option<User>, sqlx::Error> {
-    let user = sqlx::query_as!(
-        User,
-        r#"SELECT user_id as "user_id: Uuid", username, password_hash FROM users WHERE username = ?"#,
-        username
-    )
-    .fetch_optional(db_pool)
-    .await?;
-
-    Ok(user)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,30 +111,41 @@ mod tests {
     async fn setup_db() -> Result<SqlitePool, sqlx::Error> {
         let pool = SqlitePool::connect(":memory:").await?;
 
-        sqlx::query("CREATE TABLE users (user_id TEXT PRIMARY KEY NOT NULL, username TEXT NOT NULL, password_hash TEXT NOT NULL)")
-            .execute(&pool)
-            .await?;
+        sqlx::query(
+            "
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                email TEXT UNIQUE,
+                date_registered TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP      
+            )
+        ",
+        )
+        .execute(&pool)
+        .await?;
         Ok(pool)
     }
 
     #[tokio::test]
-    async fn test_create_user_and_find_user_by_username() {
+    async fn test_create_user() {
         let db_pool = setup_db().await.expect("Failed to create the in-memory DB");
 
         let password = "password123";
+        let email = "test@test.com";
         let hashed_password = hash_password(password).unwrap();
 
         let username = "testuser";
-        create_user(&db_pool, username, &hashed_password)
+        create_user(&db_pool, email, username, &hashed_password)
             .await
             .expect("Failed to create user");
 
-        let found_user = find_user_by_username(&db_pool, username)
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&db_pool)
             .await
-            .expect("Failed to find user");
+            .expect("Failed to fetch user count");
 
-        assert!(found_user.is_some());
-        let user = found_user.unwrap();
-        assert_eq!(user.username, username);
+        assert_eq!(count.0, 1, "A user should have been added.");
     }
 }

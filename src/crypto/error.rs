@@ -45,12 +45,6 @@ pub enum CryptoError {
     /// It is typically encountered when converting configuration values
     /// or parameters from text to numbers.
     ParseIntError(std::num::ParseIntError),
-
-    /// Indicates a generic database error.
-    ///
-    /// This variant represents a generic error related to database
-    /// operations within cryptographic contexts.
-    DatabaseError,
 }
 
 /// A structured error type for hashing operations, encapsulating details about the error.
@@ -162,7 +156,6 @@ impl<'r> Responder<'r, 'static> for CryptoError {
         match self {
             CryptoError::KeyPairError(_) => Response::build().status(Status::BadRequest).ok(),
             CryptoError::TokenCreationError
-            | CryptoError::DatabaseError
             | CryptoError::SystemTimeError(_)
             | CryptoError::ParseIntError(_)
             | CryptoError::EnvVarError(_) => {

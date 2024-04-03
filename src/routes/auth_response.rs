@@ -1,9 +1,11 @@
-use crate::auth::LoginDTO;
-use crate::auth::{create_user, find_user_by_username};
+use crate::auth::{create_user, PasswordDTO, RegisterDTO};
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use crate::db::KeysTable;
+use rocket::http::Status;
+use rocket::response::status;
 use rocket::serde::json::Json;
 use sqlx::SqlitePool;
+use uuid::Uuid;
 
 /// Provides the public keys in JWKS (JSON Web Key Set) format.
 ///
@@ -31,31 +33,17 @@ pub async fn get_jwks(db_pool: &rocket::State<SqlitePool>) -> Json<Jwks> {
 ///
 /// # Arguments
 ///
-/// * `creds` - User credentials including a username and password.
 /// * `expired` - An optional query parameter that dictates whether the issued JWT should be expired.
-#[post("/auth?<expired>", data = "<creds>")]
+#[post("/auth?<expired>")]
 pub async fn auth(
     db_pool: &rocket::State<SqlitePool>,
     expired: Option<bool>,
-    creds: Json<Option<LoginDTO>>,
 ) -> Result<String, CryptoError> {
-    let user_creds = creds.into_inner().unwrap_or_default();
-    let user_option = find_user_by_username(db_pool, &user_creds.username)
-        .await
-        .map_err(|_| CryptoError::DatabaseError)?;
-
-    match user_option {
-        Some(user) => user,
-        None => create_user(db_pool, &user_creds.username, &user_creds.password)
-            .await
-            .map_err(|_| CryptoError::DatabaseError)?,
-    };
-
     let find_expired = expired.unwrap_or(false);
     let private_keys: Vec<KeysTable> = sqlx::query_as!(KeysTable, "SELECT * FROM keys")
         .fetch_all(&**db_pool)
         .await
-        .expect("");
+        .expect("Unable to get keys from keys table");
 
     let key_pairs: Vec<KeyPair> = private_keys
         .iter()
@@ -68,4 +56,26 @@ pub async fn auth(
         .ok_or(CryptoError::TokenCreationError)?;
 
     Ok(Jwt::from(&key_pair)?)
+}
+
+#[post("/register", data = "<creds>")]
+pub async fn register(
+    db_pool: &rocket::State<SqlitePool>,
+    creds: Json<RegisterDTO>,
+) -> Result<status::Custom<Json<PasswordDTO>>, Json<String>> {
+    let new_generated_password = Uuid::new_v4().to_string();
+
+    create_user(
+        db_pool,
+        &creds.username,
+        &creds.email,
+        &new_generated_password,
+    )
+    .await
+    .expect("failed to create new user");
+
+    Ok(status::Custom(
+        Status::Created,
+        Json(PasswordDTO::new(&new_generated_password)),
+    ))
 }
