@@ -4,7 +4,65 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
 use rocket::http::Status;
-use rocket::request::{FromRequest, Outcome, Request};
+use rocket::request::{self, FromRequest, Outcome, Request};
+use rocket::State;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+pub struct RateLimiter {
+    requests: Mutex<HashMap<String, Vec<Instant>>>,
+    limit: usize,
+    window: Duration,
+}
+
+impl RateLimiter {
+    pub fn new(limit: usize, window: Duration) -> Self {
+        RateLimiter {
+            requests: Mutex::new(HashMap::new()),
+            limit,
+            window,
+        }
+    }
+
+    fn allow(&self, ip: &str) -> bool {
+        let mut requests = self.requests.lock().unwrap();
+        let now = Instant::now();
+        let window_start = now - self.window;
+
+        let entry = requests.entry(ip.to_string()).or_insert_with(Vec::new);
+        entry.retain(|&time| time > window_start);
+
+        if entry.len() < self.limit {
+            entry.push(now);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RateLimited;
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for RateLimited {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+        let rate_limiter = request.guard::<&State<RateLimiter>>().await.unwrap();
+        let ip = request
+            .client_ip()
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        if rate_limiter.inner().allow(&ip) {
+            Outcome::Success(RateLimited)
+        } else {
+            Outcome::Error((Status::TooManyRequests, ()))
+        }
+    }
+}
 
 pub struct ClientIp(pub String);
 

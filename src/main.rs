@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 
+use auth::RateLimiter;
 use crypto::KeyPair;
 use dotenv;
 use rand::rngs::StdRng;
@@ -8,6 +9,7 @@ use rand::{Rng, SeedableRng};
 use rocket::fairing::AdHoc;
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use sqlx::SqlitePool;
+use std::time::Duration;
 
 mod auth;
 mod crypto;
@@ -91,6 +93,7 @@ async fn rocket() -> _ {
             rocket.manage(db_pool)
         }))
         .manage(key_pairs)
+        .manage(RateLimiter::new(10, Duration::from_secs(1)))
         .mount(
             "/",
             routes![

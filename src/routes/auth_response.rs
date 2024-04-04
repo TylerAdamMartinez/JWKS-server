@@ -1,4 +1,4 @@
-use crate::auth::{create_user, ClientIp, PasswordDTO, RegisterDTO};
+use crate::auth::{create_user, ClientIp, PasswordDTO, RateLimited, RegisterDTO};
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use crate::db::KeysTable;
 use rocket::http::Status;
@@ -38,6 +38,7 @@ pub async fn get_jwks(db_pool: &rocket::State<SqlitePool>) -> Json<Jwks> {
 pub async fn auth(
     db_pool: &rocket::State<SqlitePool>,
     request_ip: ClientIp,
+    _rate_limited: RateLimited,
     expired: Option<bool>,
 ) -> Result<String, CryptoError> {
     let find_expired = expired.unwrap_or(false);
