@@ -1,4 +1,4 @@
-use crate::auth::{create_user, PasswordDTO, RegisterDTO};
+use crate::auth::{create_user, ClientIp, PasswordDTO, RegisterDTO};
 use crate::crypto::{CryptoError, Jwks, Jwt, KeyPair};
 use crate::db::KeysTable;
 use rocket::http::Status;
@@ -37,6 +37,7 @@ pub async fn get_jwks(db_pool: &rocket::State<SqlitePool>) -> Json<Jwks> {
 #[post("/auth?<expired>")]
 pub async fn auth(
     db_pool: &rocket::State<SqlitePool>,
+    request_ip: ClientIp,
     expired: Option<bool>,
 ) -> Result<String, CryptoError> {
     let find_expired = expired.unwrap_or(false);
@@ -44,6 +45,18 @@ pub async fn auth(
         .fetch_all(&**db_pool)
         .await
         .expect("Unable to get keys from keys table");
+
+    let request_ip = request_ip.0;
+    let user_id = 1;
+
+    sqlx::query!(
+        "INSERT INTO auth_logs (request_ip, user_id) VALUES (?, ?)",
+        request_ip,
+        user_id
+    )
+    .execute(&**db_pool)
+    .await
+    .expect("");
 
     let key_pairs: Vec<KeyPair> = private_keys
         .iter()

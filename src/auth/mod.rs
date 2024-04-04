@@ -3,6 +3,23 @@ use bcrypt::{hash, DEFAULT_COST};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
+use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
+
+pub struct ClientIp(pub String);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ClientIp {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        match request.client_ip() {
+            Some(ip) => Outcome::Success(ClientIp(ip.to_string())),
+            None => Outcome::Error((Status::BadRequest, ())),
+        }
+    }
+}
+
 /// Represents credentials with a username and password.
 #[derive(Debug, Deserialize, Default)]
 pub struct LoginDTO {

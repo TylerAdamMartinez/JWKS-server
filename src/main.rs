@@ -43,6 +43,23 @@ async fn rocket() -> _ {
         .await
         .expect("err");
 
+    sqlx::query!("DELETE FROM auth_logs")
+        .execute(&db_pool)
+        .await
+        .expect("err");
+
+    sqlx::query!("DELETE FROM users")
+        .execute(&db_pool)
+        .await
+        .expect("err");
+
+    sqlx::query!(
+        "INSERT INTO users (id, username, email, password_hash) VALUES (1, 'test', 'test@test.com', 'password')"
+    )
+    .execute(&db_pool)
+    .await
+    .expect("err");
+
     let mut rng = StdRng::from_rng(rand::thread_rng()).expect("Failed to seed StdRng");
     let mut key_pairs = Vec::<KeyPair>::new();
     for i in 0..40 {
